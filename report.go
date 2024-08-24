@@ -9,7 +9,7 @@ type HTMLData struct {
 	Groups [][]string
 }
 
-func generateHTMLReport(similarImages [][]string, outputFile string) error {
+func generateHTMLReport(similarGroups [][]string, outputFile string) error {
 	tmpl := `
 <!DOCTYPE html>
 <html lang="en">
@@ -60,6 +60,6 @@ func generateHTMLReport(similarImages [][]string, outputFile string) error {
 	}
 	defer file.Close()
 
-	data := HTMLData{Groups: similarImages}
+	data := HTMLData{Groups: similarGroups}
 	return t.Execute(file, data)
 }

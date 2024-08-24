@@ -1,55 +1,71 @@
 package main
 
 import (
+	"crypto/md5"
 	"fmt"
 	"image"
-	"image/color"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"os"
+	"path/filepath"
 
-	"github.com/nfnt/resize"
+	"github.com/corona10/goimagehash"
 )
 
-type ImageHash struct {
-	Path string
-	Hash uint64
+type ImageInfo struct {
+	Path     string
+	FileHash [16]byte
+	PHash    *goimagehash.ImageHash
 }
 
-func computeHashes(images []string, progress *Progress) ([]ImageHash, error) {
-	var imageHashes []ImageHash
-	for _, path := range images {
-		hash, err := computeDHash(path)
+func computeHashes(images []string, progress chan<- string) ([]ImageInfo, error) {
+	var imageInfos []ImageInfo
+	for i, path := range images {
+		fileHash, err := computeFileHash(path)
 		if err != nil {
-			fmt.Printf("\nError computing hash for %s: %v\n", path, err)
+			fmt.Printf("Error computing file hash for %s: %v\n", path, err)
 			continue
 		}
-		imageHashes = append(imageHashes, ImageHash{Path: path, Hash: hash})
-		progress.Increment()
+
+		pHash, err := computePHash(path)
+		if err != nil {
+			fmt.Printf("Error computing perceptual hash for %s: %v\n", path, err)
+			continue
+		}
+
+		imageInfos = append(imageInfos, ImageInfo{Path: path, FileHash: fileHash, PHash: pHash})
+
+		// Send progress update
+		progress <- fmt.Sprintf("Processed %d/%d: %s", i+1, len(images), filepath.Base(path))
 	}
-	return imageHashes, nil
+	return imageInfos, nil
 }
 
-func computeDHash(path string) (uint64, error) {
+func computeFileHash(path string) ([16]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return [16]byte{}, err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return [16]byte{}, err
+	}
+
+	var result [16]byte
+	copy(result[:], hash.Sum(nil))
+	return result, nil
+}
+
+func computePHash(path string) (*goimagehash.ImageHash, error) {
 	img, err := openImage(path)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	resized := resize.Resize(9, 8, img, resize.Bilinear)
-
-	var hash uint64
-	for y := 0; y < 8; y++ {
-		for x := 0; x < 8; x++ {
-			left, _ := resized.At(x, y).(color.Gray)
-			right, _ := resized.At(x+1, y).(color.Gray)
-			if left.Y > right.Y {
-				hash |= 1 << (uint(y*8 + x))
-			}
-		}
-	}
-
-	return hash, nil
+	return goimagehash.PerceptionHash(img)
 }
 
 func openImage(path string) (image.Image, error) {

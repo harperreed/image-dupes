@@ -4,11 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
+
+	"github.com/briandowns/spinner"
 )
 
 func main() {
 	rootDir := flag.String("dir", "", "Root directory to scan for images")
-	threshold := flag.Int("threshold", 10, "Maximum hamming distance to consider images similar")
 	outputHTML := flag.String("output", "report.html", "Output HTML file name")
 	flag.Parse()
 
@@ -18,6 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Scanning directory
 	fmt.Println("Scanning directory for images...")
 	images, err := scanDirectoryRecursive(*rootDir)
 	if err != nil {
@@ -26,33 +29,41 @@ func main() {
 	}
 	fmt.Printf("Found %d images\n", len(images))
 
-	progress := &Progress{totalFiles: len(images)}
-
+	// Computing hashes
 	fmt.Println("Computing image hashes...")
-	go displayProgress(progress)
+	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	s.Start()
 
-	imageHashes, err := computeHashes(images, progress)
+	progressChan := make(chan string)
+	go func() {
+		for msg := range progressChan {
+			s.Suffix = " " + msg
+		}
+	}()
+
+	imageInfos, err := computeHashes(images, progressChan)
+	s.Stop()
+	close(progressChan)
+
 	if err != nil {
 		fmt.Printf("Error computing hashes: %v\n", err)
 		return
 	}
+	fmt.Printf("Computed hashes for %d images\n", len(imageInfos))
 
-	fmt.Println("\nFinding similar images...")
-	similarImages := findSimilarImages(imageHashes, *threshold)
+	// Finding similar images
+	fmt.Println("Finding similar images...")
+	s.Suffix = ""
+	s.Start()
+	similarGroups := findSimilarImages(imageInfos)
+	s.Stop()
+	fmt.Printf("Found %d groups of similar images\n", len(similarGroups))
 
-	// Print to console
-	fmt.Println("Similar images:")
-	for i, group := range similarImages {
-		fmt.Printf("Group %d:\n", i+1)
-		for _, img := range group {
-			fmt.Printf("  %s\n", img)
-		}
-		fmt.Println()
-	}
-
-	// Generate HTML report
+	// Generating HTML report
 	fmt.Println("Generating HTML report...")
-	err = generateHTMLReport(similarImages, *outputHTML)
+	s.Start()
+	err = generateHTMLReport(similarGroups, *outputHTML)
+	s.Stop()
 	if err != nil {
 		fmt.Printf("Error generating HTML report: %v\n", err)
 		return
