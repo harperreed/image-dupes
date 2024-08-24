@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"os"
+	"strings"
 )
 
 func scanDirectoryRecursive(rootDir string) ([]string, error) {
@@ -13,7 +14,8 @@ func scanDirectoryRecursive(rootDir string) ([]string, error) {
 		}
 		if !info.IsDir() {
 			ext := filepath.Ext(path)
-			if ext == ".jpg" || ext == ".jpeg" || ext == ".png" {
+			lowerExt := strings.ToLower(ext)
+			if lowerExt == ".jpg" || lowerExt == ".jpeg" || lowerExt == ".png" {
 				images = append(images, path)
 			}
 		}

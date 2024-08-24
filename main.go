@@ -53,14 +53,12 @@ func main() {
 
 	// Finding similar images
 	fmt.Println("Finding similar images...")
-	s.Suffix = ""
-	s.Start()
 	similarGroups := findSimilarImages(imageInfos)
-	s.Stop()
 	fmt.Printf("Found %d groups of similar images\n", len(similarGroups))
 
 	// Generating HTML report
 	fmt.Println("Generating HTML report...")
+	s.Suffix = ""
 	s.Start()
 	err = generateHTMLReport(similarGroups, *outputHTML)
 	s.Stop()
