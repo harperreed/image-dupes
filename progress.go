@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -22,13 +23,7 @@ func (p *Progress) GetProgress() (int, int) {
 	return p.processedFiles, p.totalFiles
 }
 
-// func displayProgress(progress *Progress) {
-// 	for {
-// 		time.Sleep(500 * time.Millisecond)
-// 		processed, total := progress.GetProgress()
-// 		if processed >= total {
-// 			return
-// 		}
-// 		fmt.Printf("\rProcessed %d/%d images", processed, total)
-// 	}
-// }
+func (p *Progress) DisplayProgress() {
+	processed, total := p.GetProgress()
+	fmt.Printf("\rProcessed %d/%d files\n", processed, total)
+}

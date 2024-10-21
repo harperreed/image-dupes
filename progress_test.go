@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -53,45 +54,45 @@ func TestProgressConcurrency(t *testing.T) {
 }
 
 func TestDisplayProgress(t *testing.T) {
-	// Redirect stdout to capture output
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
 	p := &Progress{totalFiles: 10, processedFiles: 0}
 
-	// Mock time.Sleep
-	oldSleep := time.Sleep
-	time.Sleep = func(d time.Duration) {}
-	defer func() { time.Sleep = oldSleep }()
+	// Use a buffer to capture the final output
+	var buf bytes.Buffer
 
+	// Use a channel to control the test duration
 	done := make(chan bool)
 	go func() {
-		displayProgress(p)
+		for i := 0; i < 10; i++ {
+			p.Increment()
+			time.Sleep(10 * time.Millisecond)
+		}
+		// Capture only the final output
+		p.DisplayProgress()
 		done <- true
 	}()
 
-	// Simulate progress
-	for i := 0; i < 10; i++ {
-		p.Increment()
-		if i == 9 {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	// Wait for displayProgress to finish
+	// Wait for the goroutine to finish
 	<-done
 
-	// Restore stdout
+	// Capture the final output
+	p.DisplayProgress()
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	p.DisplayProgress()
 	w.Close()
 	os.Stdout = old
+	_, err := io.Copy(&buf, r)
+	if err != nil {
+		t.Fatalf("Failed to copy output: %v", err)
+	}
 
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
 	output := buf.String()
 
-	expectedOutput := "\rProcessed 9/10 images"
+	// Trim any leading/trailing whitespace and remove carriage returns
+	output = strings.TrimSpace(strings.Replace(output, "\r", "", -1))
+
+	expectedOutput := "Processed 10/10 files"
 	if output != expectedOutput {
 		t.Errorf("Expected output '%s', got '%s'", expectedOutput, output)
 	}
