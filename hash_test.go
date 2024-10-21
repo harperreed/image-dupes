@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/vitali-fedulov/images4"
 )
@@ -78,32 +79,54 @@ func TestComputeHashes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			progress := make(chan string, len(tc.imagePaths))
-			imageInfos, err := computeHashes(tc.imagePaths, progress, MockImageOpener{}, MockIconCreator{}, MockFileHasher{})
 
-			if err != nil {
-				t.Fatalf("computeHashes returned an error: %v", err)
-			}
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				imageInfos, err := computeHashes(tc.imagePaths, progress, MockImageOpener{}, MockIconCreator{}, MockFileHasher{})
 
-			if len(imageInfos) != tc.expectedCount {
-				t.Errorf("Expected %d ImageInfo structs, got %d", tc.expectedCount, len(imageInfos))
-			}
-
-			// Check if FileHash and Icon fields are populated
-			for _, info := range imageInfos {
-				if info.FileHash == [16]byte{} {
-					t.Errorf("FileHash is empty for %s", info.Path)
+				if err != nil {
+					t.Errorf("computeHashes returned an error: %v", err)
+					return
 				}
-				// Check if Icon is the zero value of images4.IconT
-				if reflect.DeepEqual(info.Icon, images4.IconT{}) {
-					t.Errorf("Icon is empty for %s", info.Path)
-				}
-			}
 
-			// Check progress channel
+				if len(imageInfos) != tc.expectedCount {
+					t.Errorf("Expected %d ImageInfo structs, got %d", tc.expectedCount, len(imageInfos))
+				}
+
+				// Check if FileHash and Icon fields are populated
+				for _, info := range imageInfos {
+					if info.FileHash == [16]byte{} {
+						t.Errorf("FileHash is empty for %s", info.Path)
+					}
+					// Check if Icon is the zero value of images4.IconT
+					if reflect.DeepEqual(info.Icon, images4.IconT{}) {
+						t.Errorf("Icon is empty for %s", info.Path)
+					}
+				}
+			}()
+
+			// Check progress channel with timeout
 			progressCount := 0
-			for range progress {
-				progressCount++
+			timeout := time.After(5 * time.Second)
+		progressLoop:
+			for {
+				select {
+				case <-progress:
+					progressCount++
+					if progressCount == len(tc.imagePaths) {
+						break progressLoop
+					}
+				case <-timeout:
+					t.Errorf("Test timed out waiting for progress updates")
+					break progressLoop
+				case <-done:
+					break progressLoop
+				}
 			}
+
+			<-done // Wait for the goroutine to finish
+
 			if progressCount != len(tc.imagePaths) {
 				t.Errorf("Expected %d progress updates, got %d", len(tc.imagePaths), progressCount)
 			}
