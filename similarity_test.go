@@ -7,6 +7,20 @@ import (
 	"github.com/vitali-fedulov/images4"
 )
 
+// MockSimilarFunc is a type for mocking the Similar function
+type MockSimilarFunc func(icon1, icon2 images4.IconT) bool
+
+// mockSimilar is a variable to hold the mock function
+var mockSimilar MockSimilarFunc
+
+// similarWrapper wraps the Similar function to allow mocking in tests
+func similarWrapper(icon1, icon2 images4.IconT) bool {
+	if mockSimilar != nil {
+		return mockSimilar(icon1, icon2)
+	}
+	return images4.Similar(icon1, icon2)
+}
+
 func TestFindSimilarImages(t *testing.T) {
 	// Create test data
 	img1 := ImageInfo{Path: "img1.jpg", FileHash: [16]byte{1}, Icon: images4.IconT{}}
@@ -28,11 +42,10 @@ func TestFindSimilarImages(t *testing.T) {
 	t.Run("Visually Similar Images", func(t *testing.T) {
 		imageInfos := []ImageInfo{img3, img4}
 		// Mock the Similar function to return true for these images
-		oldSimilar := images4.Similar
-		images4.Similar = func(icon1, icon2 images4.IconT) bool {
+		mockSimilar = func(icon1, icon2 images4.IconT) bool {
 			return true
 		}
-		defer func() { images4.Similar = oldSimilar }()
+		defer func() { mockSimilar = nil }()
 
 		result := findSimilarImages(imageInfos)
 		expected := [][]string{{"img3.jpg", "img4.jpg"}}
@@ -45,11 +58,10 @@ func TestFindSimilarImages(t *testing.T) {
 	t.Run("Mixed Image Set", func(t *testing.T) {
 		imageInfos := []ImageInfo{img1, img2, img3, img4}
 		// Mock the Similar function to return true only for img3 and img4
-		oldSimilar := images4.Similar
-		images4.Similar = func(icon1, icon2 images4.IconT) bool {
+		mockSimilar = func(icon1, icon2 images4.IconT) bool {
 			return (icon1 == img3.Icon && icon2 == img4.Icon) || (icon1 == img4.Icon && icon2 == img3.Icon)
 		}
-		defer func() { images4.Similar = oldSimilar }()
+		defer func() { mockSimilar = nil }()
 
 		result := findSimilarImages(imageInfos)
 		expected := [][]string{{"img1.jpg", "img2.jpg"}, {"img3.jpg", "img4.jpg"}}
@@ -104,11 +116,10 @@ func TestGroupByImageSimilarity(t *testing.T) {
 			{Path: "img3.jpg", Icon: images4.IconT{}},
 		}
 		// Mock the Similar function to return true for all comparisons
-		oldSimilar := images4.Similar
-		images4.Similar = func(icon1, icon2 images4.IconT) bool {
+		mockSimilar = func(icon1, icon2 images4.IconT) bool {
 			return true
 		}
-		defer func() { images4.Similar = oldSimilar }()
+		defer func() { mockSimilar = nil }()
 
 		result := groupByImageSimilarity(imageInfos)
 		if len(result) != 1 {
@@ -127,11 +138,10 @@ func TestGroupByImageSimilarity(t *testing.T) {
 			{Path: "img3.jpg", Icon: images4.IconT{}},
 		}
 		// Mock the Similar function to return false for all comparisons
-		oldSimilar := images4.Similar
-		images4.Similar = func(icon1, icon2 images4.IconT) bool {
+		mockSimilar = func(icon1, icon2 images4.IconT) bool {
 			return false
 		}
-		defer func() { images4.Similar = oldSimilar }()
+		defer func() { mockSimilar = nil }()
 
 		result := groupByImageSimilarity(imageInfos)
 		if len(result) != 0 {
@@ -154,6 +164,7 @@ func TestGetRemainingImages(t *testing.T) {
 		}
 		result := getRemainingImages(allImages, groupedImages)
 		if len(result) != 2 {
+
 			t.Errorf("Expected 2 remaining images, got %d", len(result))
 		}
 		expectedPaths := []string{"img3.jpg", "img4.jpg"}

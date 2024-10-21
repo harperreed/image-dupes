@@ -55,7 +55,7 @@ func groupByImageSimilarity(imageInfos []ImageInfo) [][]string {
 				continue
 			}
 
-			if images4.Similar(img1.Icon, img2.Icon) {
+			if similarWrapper(img1.Icon, img2.Icon) {
 				group = append(group, img2.Path)
 				compared[img2.Path] = true
 			}
@@ -74,6 +74,11 @@ func groupByImageSimilarity(imageInfos []ImageInfo) [][]string {
 
 	fmt.Println() // New line after progress
 	return groups
+}
+
+// similarWrapper wraps the Similar function to allow mocking in tests
+func similarWrapper(icon1, icon2 images4.IconT) bool {
+	return images4.Similar(icon1, icon2)
 }
 
 func getRemainingImages(allImages []ImageInfo, groupedImages [][]string) []ImageInfo {
