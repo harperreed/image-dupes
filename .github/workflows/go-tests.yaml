@@ -1,4 +1,4 @@
-name: Go Tests and Lint
+name: Go Tests, Lint, and Race Detection
 
 on:
     push:
@@ -74,7 +74,9 @@ jobs:
                     echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
                   fi
             - name: Run tests
-              run: go test -v  ./... -coverprofile=coverage.out -covermode=atomic
+              run: go test -v ./... -coverprofile=coverage.out -covermode=atomic
+            - name: Run tests with race detection
+              run: go test -race -v ./...
             - name: Upload test results
               uses: actions/upload-artifact@v3.1.2
               with:
@@ -115,4 +117,5 @@ jobs:
                     echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
                   fi
             - name: Run tests with race detector
+              run: go test -race -v ./...
               run: go test -race -v ./...

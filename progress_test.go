@@ -56,36 +56,41 @@ func TestProgressConcurrency(t *testing.T) {
 func TestDisplayProgress(t *testing.T) {
 	p := &Progress{totalFiles: 10, processedFiles: 0}
 
-	// Use a buffer to capture the final output
+	// Use a buffer to capture the output
 	var buf bytes.Buffer
 
-	// Use a channel to control the test duration
+	// Use a channel to synchronize the goroutine and the main test thread
 	done := make(chan bool)
+	outputReady := make(chan bool)
+
 	go func() {
 		for i := 0; i < 10; i++ {
 			p.Increment()
-			time.Sleep(10 * time.Millisecond)
 		}
-		// Capture only the final output
-		p.DisplayProgress()
 		done <- true
 	}()
 
-	// Wait for the goroutine to finish
-	<-done
+	go func() {
+		<-done
+		// Redirect stdout to our buffer
+		old := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
 
-	// Capture the final output
-	p.DisplayProgress()
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	p.DisplayProgress()
-	w.Close()
-	os.Stdout = old
-	_, err := io.Copy(&buf, r)
-	if err != nil {
-		t.Fatalf("Failed to copy output: %v", err)
-	}
+		p.DisplayProgress()
+
+		w.Close()
+		os.Stdout = old
+
+		_, err := io.Copy(&buf, r)
+		if err != nil {
+			t.Errorf("Failed to copy output: %v", err)
+		}
+		outputReady <- true
+	}()
+
+	// Wait for the output to be ready
+	<-outputReady
 
 	output := buf.String()
 
@@ -95,5 +100,32 @@ func TestDisplayProgress(t *testing.T) {
 	expectedOutput := "Processed 10/10 files"
 	if output != expectedOutput {
 		t.Errorf("Expected output '%s', got '%s'", expectedOutput, output)
+	}
+}
+
+func TestProgressThreadSafety(t *testing.T) {
+	p := &Progress{totalFiles: 1000, processedFiles: 0}
+	numGoroutines := 100
+	incrementsPerGoroutine := 10
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < incrementsPerGoroutine; j++ {
+				p.Increment()
+				time.Sleep(time.Millisecond) // Small delay to increase chances of race condition
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	processed, total := p.GetProgress()
+	expected := numGoroutines * incrementsPerGoroutine
+	if processed != expected || total != 1000 {
+		t.Errorf("Expected (%d, 1000), got (%d, %d)", expected, processed, total)
 	}
 }

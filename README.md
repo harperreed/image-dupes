@@ -91,18 +91,12 @@ To run the test suite for progress.go, use the following command:
 go test -v ./...
 ```
 
-Thanks for exploring Image Dupes Finder! 🎉 If you encounter any issues or have suggestions, feel free to open an issue or contribute to the project. Happy coding!
-
-## Running Tests
-
-To run the test suite, use the following command in the project root directory:
+To run tests with race detection, which can help identify potential concurrency issues, use:
 
 ```sh
-go test ./...
+go test -race -v ./...
 ```
 
-This will run all tests in the project, including the newly added tests for the `hash.go` file.
+This is particularly important for ensuring thread-safety in concurrent operations.
 
-## Contributing
-
-If you're contributing to the project, please ensure that you add or update tests as necessary to maintain code quality and reliability.
+Thanks for exploring Image Dupes Finder! 🎉 If you encounter any issues or have suggestions, feel free to open an issue or contribute to the project. Happy coding!
