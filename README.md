@@ -101,6 +101,7 @@ To run the test suite, use the following command in the project root directory:
 go test ./...
 ```
 
+
 This will run all tests in the project, including:
 - Tests for the `hash.go` file
 - Tests for the `scanner.go` file (new)
@@ -115,6 +116,20 @@ The test suite for `scanner.go` includes comprehensive tests for the `scanDirect
 - Handling different image extensions (.jpg, .jpeg, .png)
 - Error handling for inaccessible directories or files
 
+
+This will run all tests in the project, including the newly added tests for the `hash.go` and `report.go` files.
+
+### Test Coverage
+
+The project now includes comprehensive test suites for various components:
+
+- `progress_test.go`: Tests for the progress tracking functionality.
+- `hash_test.go`: Tests for the image hashing functionality.
+- `report_test.go`: Tests for the HTML report generation functionality.
+
+These test suites cover various scenarios, including successful operations, error handling, and edge cases.
+
 ## Contributing
 
-If you're contributing to the project, please ensure that you add or update tests as necessary to maintain code quality and reliability. The `scanner_test.go` file provides a good example of how to structure and implement comprehensive tests for Go functions.
+If you're contributing to the project, please ensure that you add or update tests as necessary to maintain code quality and reliability. The existing test suites provide good examples of how to structure and implement tests for new features or modifications.
+
