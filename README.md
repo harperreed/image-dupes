@@ -33,6 +33,16 @@ Welcome to the **Image Dupes Finder** repository! This project helps you identif
    go run main.go -dir /path/to/images -output report.html
    ```
 
+### Running Tests
+
+To run the test suite:
+
+```sh
+go test ./...
+```
+
+This command will run all tests in the project, including the newly added tests for the similarity functions.
+
 ### Output
 
 The tool generates an HTML report (`report.html` by default) that lists groups of similar images for easy review.
@@ -53,6 +63,7 @@ image-dupes/
 ├── report.go
 ├── scanner.go
 ├── similarity.go
+├── similarity_test.go
 └── test.html
 ```
 
