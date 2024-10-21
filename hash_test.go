@@ -3,21 +3,32 @@ package main
 import (
 	"bytes"
 	"crypto/md5"
+	"image"
 	"io/ioutil"
 	"os"
-	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/vitali-fedulov/images4"
 )
 
-// Mock functions for images4 package
-func mockOpen(path string) (images4.ImageWithThumb, error) {
-	return images4.ImageWithThumb{}, nil
+// Mock structs
+type MockImageOpener struct{}
+
+func (m MockImageOpener) Open(path string) (image.Image, error) {
+	return &image.RGBA{}, nil
 }
 
-func mockIcon(img images4.ImageWithThumb) images4.IconT {
+type MockIconCreator struct{}
+
+func (m MockIconCreator) Icon(img image.Image) images4.IconT {
 	return images4.IconT{}
+}
+
+type MockFileHasher struct{}
+
+func (m MockFileHasher) ComputeFileHash(path string) ([16]byte, error) {
+	return md5.Sum([]byte(path)), nil // Use path as content for deterministic testing
 }
 
 // Helper function to create a temporary file with content
@@ -45,18 +56,6 @@ func removeTempFiles(t *testing.T, files []string) {
 }
 
 func TestComputeHashes(t *testing.T) {
-	// Save original functions and restore them after the test
-	originalOpen := images4.Open
-	originalIcon := images4.Icon
-	defer func() {
-		images4.Open = originalOpen
-		images4.Icon = originalIcon
-	}()
-
-	// Replace with mock functions
-	images4.Open = mockOpen
-	images4.Icon = mockIcon
-
 	// Create temporary test files
 	content1 := []byte("test content 1")
 	content2 := []byte("test content 2")
@@ -79,7 +78,7 @@ func TestComputeHashes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			progress := make(chan string, len(tc.imagePaths))
-			imageInfos, err := computeHashes(tc.imagePaths, progress)
+			imageInfos, err := computeHashes(tc.imagePaths, progress, MockImageOpener{}, MockIconCreator{}, MockFileHasher{})
 
 			if err != nil {
 				t.Fatalf("computeHashes returned an error: %v", err)
@@ -94,7 +93,8 @@ func TestComputeHashes(t *testing.T) {
 				if info.FileHash == [16]byte{} {
 					t.Errorf("FileHash is empty for %s", info.Path)
 				}
-				if info.Icon == (images4.IconT{}) {
+				// Check if Icon is the zero value of images4.IconT
+				if reflect.DeepEqual(info.Icon, images4.IconT{}) {
 					t.Errorf("Icon is empty for %s", info.Path)
 				}
 			}
@@ -111,7 +111,9 @@ func TestComputeHashes(t *testing.T) {
 	}
 }
 
-func TestComputeFileHash(t *testing.T) {
+func TestDefaultFileHasher(t *testing.T) {
+	hasher := DefaultFileHasher{}
+
 	// Test cases
 	testCases := []struct {
 		name        string
@@ -128,7 +130,7 @@ func TestComputeFileHash(t *testing.T) {
 			tmpfile := createTempFile(t, tc.content)
 			defer removeTempFiles(t, []string{tmpfile})
 
-			hash, err := computeFileHash(tmpfile)
+			hash, err := hasher.ComputeFileHash(tmpfile)
 
 			if tc.expectError && err == nil {
 				t.Errorf("Expected an error, but got none")
@@ -149,7 +151,7 @@ func TestComputeFileHash(t *testing.T) {
 
 	// Test with non-existent file
 	t.Run("NonExistentFile", func(t *testing.T) {
-		_, err := computeFileHash("nonexistent.file")
+		_, err := hasher.ComputeFileHash("nonexistent.file")
 		if err == nil {
 			t.Errorf("Expected an error for non-existent file, but got none")
 		}
@@ -163,7 +165,7 @@ func TestComputeFileHash(t *testing.T) {
 		}
 		defer os.RemoveAll(tmpDir)
 
-		_, err = computeFileHash(tmpDir)
+		_, err = hasher.ComputeFileHash(tmpDir)
 		if err == nil {
 			t.Errorf("Expected an error for directory, but got none")
 		}
