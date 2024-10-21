@@ -5,7 +5,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"image"
-	"io/ioutil"
+
 	"os"
 	"reflect"
 	"testing"
@@ -41,7 +41,7 @@ func (m MockFileHasher) ComputeFileHash(path string) ([16]byte, error) {
 
 // Helper function to create a temporary file with content
 func createTempFile(t *testing.T, content []byte) string {
-	tmpfile, err := ioutil.TempFile("", "test")
+	tmpfile, err := os.CreateTemp("", "test")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestDefaultFileHasher(t *testing.T) {
 
 	// Test with a directory instead of a file
 	t.Run("Directory", func(t *testing.T) {
-		tmpDir, err := ioutil.TempDir("", "test")
+		tmpDir, err := os.MkdirTemp("", "test")
 		if err != nil {
 			t.Fatalf("Failed to create temp directory: %v", err)
 		}
