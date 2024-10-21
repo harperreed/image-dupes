@@ -78,8 +78,17 @@ image-dupes/
 - **hash.go**: Contains functions to compute file and perceptual hashes for images.
 - **main.go**: Entry point for the application, manages scanning, hashing, finding similar images, and generating the report.
 - **progress.go**: Handles progress display in the terminal.
+- **progress_test.go**: Contains the test suite for progress.go, ensuring correct functionality of the Progress struct and its methods.
 - **report.go**: Contains logic to generate an HTML report from the found image groups.
 - **scanner.go**: Recursively scans the directory for images.
 - **similarity.go**: Implements algorithms to compare and group similar images.
+
+### Running Tests
+
+To run the test suite for progress.go, use the following command:
+
+```sh
+go test -v ./...
+```
 
 Thanks for exploring Image Dupes Finder! 🎉 If you encounter any issues or have suggestions, feel free to open an issue or contribute to the project. Happy coding!
