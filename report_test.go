@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -113,7 +112,7 @@ func TestGenerateHTMLReport(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				content, err := ioutil.ReadFile(tt.outputFile)
+				content, err := os.ReadFile(tt.outputFile)
 				if err != nil {
 					t.Fatalf("Failed to read generated HTML file: %v", err)
 				}
