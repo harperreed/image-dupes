@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"sync"
-	"time"
 )
 
 type Progress struct {
@@ -24,13 +22,13 @@ func (p *Progress) GetProgress() (int, int) {
 	return p.processedFiles, p.totalFiles
 }
 
-func displayProgress(progress *Progress) {
-	for {
-		time.Sleep(500 * time.Millisecond)
-		processed, total := progress.GetProgress()
-		if processed >= total {
-			return
-		}
-		fmt.Printf("\rProcessed %d/%d images", processed, total)
-	}
-}
+// func displayProgress(progress *Progress) {
+// 	for {
+// 		time.Sleep(500 * time.Millisecond)
+// 		processed, total := progress.GetProgress()
+// 		if processed >= total {
+// 			return
+// 		}
+// 		fmt.Printf("\rProcessed %d/%d images", processed, total)
+// 	}
+// }
