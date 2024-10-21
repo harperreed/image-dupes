@@ -101,23 +101,23 @@ To run the test suite, use the following command in the project root directory:
 go test ./...
 ```
 
-
 This will run all tests in the project, including:
 - Tests for the `hash.go` file
-- Tests for the `scanner.go` file (new)
+- Tests for the `scanner.go` file
 - Tests for the `progress.go` file
+- Tests for the `similarity.go` file (new)
 
-The test suite for `scanner.go` includes comprehensive tests for the `scanDirectoryRecursive` function, covering various scenarios such as:
-- Scanning empty directories
-- Scanning directories with no image files
-- Scanning directories with only image files
-- Scanning directories with mixed file types
-- Scanning directories with subdirectories containing images
-- Handling different image extensions (.jpg, .jpeg, .png)
-- Error handling for inaccessible directories or files
+The test suite for `similarity.go` includes comprehensive tests for the following functions:
+- `findSimilarImages`
+- `groupByFileHash`
+- `groupByImageSimilarity`
+- `getRemainingImages`
 
-
-This will run all tests in the project, including the newly added tests for the `hash.go` and `report.go` files.
+These tests cover various scenarios such as:
+- Identifying identical images (same file hash)
+- Grouping visually similar images (different file hash)
+- Handling mixed sets of identical, similar, and unique images
+- Performance testing with large datasets
 
 ### Test Coverage
 
@@ -126,8 +126,19 @@ The project now includes comprehensive test suites for various components:
 - `progress_test.go`: Tests for the progress tracking functionality.
 - `hash_test.go`: Tests for the image hashing functionality.
 - `report_test.go`: Tests for the HTML report generation functionality.
+- `similarity_test.go`: Tests for image comparison and grouping functionality.
 
 These test suites cover various scenarios, including successful operations, error handling, and edge cases.
+
+### Running Benchmarks
+
+To run the benchmark tests, use the following command:
+
+```sh
+go test -bench=. ./...
+```
+
+This will run all tests and benchmarks, including the performance test for `groupByImageSimilarity` with a large number of images.
 
 ## Contributing
 
