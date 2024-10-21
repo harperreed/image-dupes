@@ -101,6 +101,22 @@ To run the test suite, use the following command in the project root directory:
 go test ./...
 ```
 
+
+This will run all tests in the project, including:
+- Tests for the `hash.go` file
+- Tests for the `scanner.go` file (new)
+- Tests for the `progress.go` file
+
+The test suite for `scanner.go` includes comprehensive tests for the `scanDirectoryRecursive` function, covering various scenarios such as:
+- Scanning empty directories
+- Scanning directories with no image files
+- Scanning directories with only image files
+- Scanning directories with mixed file types
+- Scanning directories with subdirectories containing images
+- Handling different image extensions (.jpg, .jpeg, .png)
+- Error handling for inaccessible directories or files
+
+
 This will run all tests in the project, including the newly added tests for the `hash.go` and `report.go` files.
 
 ### Test Coverage
@@ -116,3 +132,4 @@ These test suites cover various scenarios, including successful operations, erro
 ## Contributing
 
 If you're contributing to the project, please ensure that you add or update tests as necessary to maintain code quality and reliability. The existing test suites provide good examples of how to structure and implement tests for new features or modifications.
+
