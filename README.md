@@ -41,6 +41,16 @@ Example:
 ./image-dupes -dir /path/to/images -output report.html
 ```
 
+### Running Tests
+
+To run the test suite, use the following command:
+
+```sh
+go test ./...
+```
+
+This will run all tests in the project, including the newly added tests for the similarity functions.
+
 ### Output
 
 The tool generates an HTML report (`report.html` by default) that lists groups of similar images for easy review.
