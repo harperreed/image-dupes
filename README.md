@@ -10,7 +10,7 @@ Welcome to the **Image Dupes Finder** repository! This project helps you identif
 
 - Install [Go](https://golang.org/dl/) (version 1.22.2 or later).
 
-### Running the Tool
+### Build
 
 1. **Clone the Repository**:
    ```sh
@@ -23,15 +23,23 @@ Welcome to the **Image Dupes Finder** repository! This project helps you identif
    go mod tidy
    ```
 
-3. **Run the Dupes Finder**:
+3. **Build the Executable**:
    ```sh
-   go run main.go -dir <root_directory>
+   go build -o image-dupes
    ```
 
-   Example:
-   ```sh
-   go run main.go -dir /path/to/images -output report.html
-   ```
+### Running the Tool
+
+After building the executable, you can run the Image Dupes Finder using the following command:
+
+```sh
+./image-dupes -dir <root_directory>
+```
+
+Example:
+```sh
+./image-dupes -dir /path/to/images -output report.html
+```
 
 ### Running Tests
 
