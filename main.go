@@ -41,7 +41,7 @@ func main() {
 		}
 	}()
 
-	imageInfos, err := computeHashes(images, progressChan)
+	imageInfos, err := computeHashes(images, progressChan, DefaultImageOpener{}, DefaultIconCreator{}, DefaultFileHasher{})
 	s.Stop()
 	close(progressChan)
 
