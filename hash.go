@@ -66,12 +66,14 @@ func computeHashes(imagePaths []string, progress chan<- string, opener ImageOpen
 		fileHash, err := hasher.ComputeFileHash(path)
 		if err != nil {
 			fmt.Printf("Error computing file hash for %s: %v\n", path, err)
+			progress <- fmt.Sprintf("Skipped %d/%d: %s (hash error)", i+1, len(imagePaths), filepath.Base(path))
 			continue
 		}
 
 		img, err := opener.Open(path)
 		if err != nil {
 			fmt.Printf("Error opening image %s: %v\n", path, err)
+			progress <- fmt.Sprintf("Skipped %d/%d: %s (open error)", i+1, len(imagePaths), filepath.Base(path))
 			continue
 		}
 

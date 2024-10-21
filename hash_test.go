@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/md5"
+	"errors"
 	"image"
 	"io/ioutil"
 	"os"
@@ -17,18 +18,24 @@ import (
 type MockImageOpener struct{}
 
 func (m MockImageOpener) Open(path string) (image.Image, error) {
+	if path == "nonexistent.jpg" {
+		return nil, errors.New("file not found")
+	}
 	return &image.RGBA{}, nil
 }
 
 type MockIconCreator struct{}
 
 func (m MockIconCreator) Icon(img image.Image) images4.IconT {
-	return images4.IconT{}
+	return images4.IconT{Pixels: []uint16{1, 2, 3}} // Non-empty IconT
 }
 
 type MockFileHasher struct{}
 
 func (m MockFileHasher) ComputeFileHash(path string) ([16]byte, error) {
+	if path == "nonexistent.jpg" {
+		return [16]byte{}, errors.New("file not found")
+	}
 	return md5.Sum([]byte(path)), nil // Use path as content for deterministic testing
 }
 
@@ -66,69 +73,77 @@ func TestComputeHashes(t *testing.T) {
 
 	// Test cases
 	testCases := []struct {
-		name          string
-		imagePaths    []string
-		expectedCount int
+		name                    string
+		imagePaths              []string
+		expectedCount           int
+		expectedProgressUpdates int
 	}{
-		{"SingleValidFile", []string{file1}, 1},
-		{"MultipleValidFiles", []string{file1, file2}, 2},
-		{"MixedValidAndInvalid", []string{file1, "nonexistent.jpg", file2}, 2},
-		{"EmptyList", []string{}, 0},
+		{"SingleValidFile", []string{file1}, 1, 1},
+		{"MultipleValidFiles", []string{file1, file2}, 2, 2},
+		{"MixedValidAndInvalid", []string{file1, "nonexistent.jpg", file2}, 2, 3},
+		{"EmptyList", []string{}, 0, 0},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			progress := make(chan string, len(tc.imagePaths))
 
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
-				imageInfos, err := computeHashes(tc.imagePaths, progress, MockImageOpener{}, MockIconCreator{}, MockFileHasher{})
+			imageInfos, err := computeHashes(tc.imagePaths, progress, MockImageOpener{}, MockIconCreator{}, MockFileHasher{})
 
-				if err != nil {
-					t.Errorf("computeHashes returned an error: %v", err)
-					return
+			if err != nil {
+				t.Errorf("computeHashes returned an error: %v", err)
+				return
+			}
+
+			if len(imageInfos) != tc.expectedCount {
+				t.Errorf("Expected %d ImageInfo structs, got %d", tc.expectedCount, len(imageInfos))
+			}
+
+			// Check if FileHash and Icon fields are populated
+			for _, info := range imageInfos {
+				if info.FileHash == [16]byte{} {
+					t.Errorf("FileHash is empty for %s", info.Path)
 				}
-
-				if len(imageInfos) != tc.expectedCount {
-					t.Errorf("Expected %d ImageInfo structs, got %d", tc.expectedCount, len(imageInfos))
-				}
-
-				// Check if FileHash and Icon fields are populated
-				for _, info := range imageInfos {
-					if info.FileHash == [16]byte{} {
-						t.Errorf("FileHash is empty for %s", info.Path)
-					}
-					// Check if Icon is the zero value of images4.IconT
-					if reflect.DeepEqual(info.Icon, images4.IconT{}) {
-						t.Errorf("Icon is empty for %s", info.Path)
-					}
-				}
-			}()
-
-			// Check progress channel with timeout
-			progressCount := 0
-			timeout := time.After(5 * time.Second)
-		progressLoop:
-			for {
-				select {
-				case <-progress:
-					progressCount++
-					if progressCount == len(tc.imagePaths) {
-						break progressLoop
-					}
-				case <-timeout:
-					t.Errorf("Test timed out waiting for progress updates")
-					break progressLoop
-				case <-done:
-					break progressLoop
+				// Check if Icon is the zero value of images4.IconT
+				if reflect.DeepEqual(info.Icon, images4.IconT{}) {
+					t.Errorf("Icon is empty for %s", info.Path)
 				}
 			}
 
-			<-done // Wait for the goroutine to finish
+			// Check progress channel
+			progressCount := 0
+			if tc.expectedProgressUpdates > 0 {
+				timeout := time.After(1 * time.Second)
+			progressLoop:
+				for {
+					select {
+					case _, ok := <-progress:
+						if !ok {
+							break progressLoop
+						}
+						progressCount++
+						if progressCount == tc.expectedProgressUpdates {
+							break progressLoop
+						}
+					case <-timeout:
+						t.Errorf("Test timed out waiting for progress updates")
+						break progressLoop
+					}
+				}
+			}
 
-			if progressCount != len(tc.imagePaths) {
-				t.Errorf("Expected %d progress updates, got %d", len(tc.imagePaths), progressCount)
+			if progressCount != tc.expectedProgressUpdates {
+				t.Errorf("Expected %d progress updates, got %d", tc.expectedProgressUpdates, progressCount)
+			}
+
+			// Ensure the progress channel is empty
+			select {
+			case update, ok := <-progress:
+				if ok {
+					t.Errorf("Unexpected progress update: %s", update)
+				}
+			default:
+				// Channel is empty, which is what we want
 			}
 		})
 	}
