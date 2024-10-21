@@ -8,13 +8,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/corona10/goimagehash"
 	"github.com/vitali-fedulov/images4"
 )
 
 type ImageInfo struct {
-	Path     string
-	FileHash [16]byte
-	Icon     images4.IconT
+	Path           string
+	FileHash       [16]byte
+	PerceptualHash uint64
+	Icon           images4.IconT
 }
 
 type ImageOpener interface {
@@ -22,7 +24,7 @@ type ImageOpener interface {
 }
 
 type IconCreator interface {
-	Icon(img image.Image) images4.IconT
+	Icon(img image.Image) (images4.IconT, uint64, error)
 }
 
 type FileHasher interface {
@@ -37,8 +39,13 @@ func (d DefaultImageOpener) Open(path string) (image.Image, error) {
 
 type DefaultIconCreator struct{}
 
-func (d DefaultIconCreator) Icon(img image.Image) images4.IconT {
-	return images4.Icon(img)
+func (d DefaultIconCreator) Icon(img image.Image) (images4.IconT, uint64, error) {
+	icon := images4.Icon(img)
+	hash, err := goimagehash.PerceptionHash(img)
+	if err != nil {
+		return images4.IconT{}, 0, err
+	}
+	return icon, hash.GetHash(), nil
 }
 
 type DefaultFileHasher struct{}
@@ -77,9 +84,14 @@ func computeHashes(imagePaths []string, progress chan<- string, opener ImageOpen
 			continue
 		}
 
-		icon := iconCreator.Icon(img)
+		icon, perceptualHash, err := iconCreator.Icon(img)
+		if err != nil {
+			fmt.Printf("Error creating icon and perceptual hash for %s: %v\n", path, err)
+			progress <- fmt.Sprintf("Skipped %d/%d: %s (icon/hash error)", i+1, len(imagePaths), filepath.Base(path))
+			continue
+		}
 
-		imageInfos = append(imageInfos, ImageInfo{Path: path, FileHash: fileHash, Icon: icon})
+		imageInfos = append(imageInfos, ImageInfo{Path: path, FileHash: fileHash, PerceptualHash: perceptualHash, Icon: icon})
 
 		progress <- fmt.Sprintf("Processed %d/%d: %s", i+1, len(imagePaths), filepath.Base(path))
 	}

@@ -5,11 +5,16 @@ import (
 	"os"
 )
 
-type HTMLData struct {
-	Groups [][]string
+type ImageData struct {
+	Path           string
+	PerceptualHash uint64
 }
 
-func generateHTMLReport(similarGroups [][]string, outputFile string) error {
+type HTMLData struct {
+	Groups [][]ImageData
+}
+
+func generateHTMLReport(similarGroups [][]ImageInfo, outputFile string) error {
 	tmpl := `
 <!DOCTYPE html>
 <html lang="en">
@@ -26,6 +31,7 @@ func generateHTMLReport(similarGroups [][]string, outputFile string) error {
         .image-container { max-width: 200px; }
         img { max-width: 100%; height: auto; border: 1px solid #ddd; }
         .path { font-size: 0.8em; word-break: break-all; margin-top: 5px; }
+        .hash { font-size: 0.8em; color: #666; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -36,8 +42,9 @@ func generateHTMLReport(similarGroups [][]string, outputFile string) error {
         <div class="images">
             {{range $group}}
             <div class="image-container">
-                <img src="file://{{.}}" alt="Similar Image">
-                <div class="path">{{.}}</div>
+                <img src="file://{{.Path}}" alt="Similar Image">
+                <div class="path">{{.Path}}</div>
+                <div class="hash">Perceptual Hash: {{printf "%016x" .PerceptualHash}}</div>
             </div>
             {{end}}
         </div>
@@ -60,6 +67,15 @@ func generateHTMLReport(similarGroups [][]string, outputFile string) error {
 	}
 	defer file.Close()
 
-	data := HTMLData{Groups: similarGroups}
+	var groups [][]ImageData
+	for _, group := range similarGroups {
+		var imageGroup []ImageData
+		for _, img := range group {
+			imageGroup = append(imageGroup, ImageData{Path: img.Path, PerceptualHash: img.PerceptualHash})
+		}
+		groups = append(groups, imageGroup)
+	}
+
+	data := HTMLData{Groups: groups}
 	return t.Execute(file, data)
 }

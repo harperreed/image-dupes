@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/corona10/goimagehash"
 	"github.com/vitali-fedulov/images4"
 )
 
@@ -55,7 +56,8 @@ func groupByImageSimilarity(imageInfos []ImageInfo) [][]string {
 				continue
 			}
 
-			if images4.Similar(img1.Icon, img2.Icon) {
+			distance := goimagehash.PerceptionHashDistance(img1.PerceptualHash, img2.PerceptualHash)
+			if distance < 10 { // Adjust this threshold as needed
 				group = append(group, img2.Path)
 				compared[img2.Path] = true
 			}

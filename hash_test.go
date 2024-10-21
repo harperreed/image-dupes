@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/corona10/goimagehash"
 	"github.com/vitali-fedulov/images4"
 )
 
@@ -208,4 +209,83 @@ func TestDefaultFileHasher(t *testing.T) {
 			t.Errorf("Expected an error for directory, but got none")
 		}
 	})
+}
+
+func TestPerceptualHash(t *testing.T) {
+	// Create a mock image
+	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
+
+	creator := DefaultIconCreator{}
+	icon, hash, err := creator.Icon(img)
+
+	if err != nil {
+		t.Fatalf("Error creating icon and perceptual hash: %v", err)
+	}
+
+	if icon.Pixels == nil {
+		t.Error("Icon pixels are nil")
+	}
+
+	if hash == 0 {
+		t.Error("Perceptual hash is 0")
+	}
+}
+
+func TestComputeHashesWithPerceptualHash(t *testing.T) {
+	// Create temporary test files
+	content1 := []byte("test content 1")
+	content2 := []byte("test content 2")
+	file1 := createTempFile(t, content1)
+	file2 := createTempFile(t, content2)
+	defer removeTempFiles(t, []string{file1, file2})
+
+	progress := make(chan string, 2)
+
+	mockOpener := MockImageOpener{}
+	mockIconCreator := struct {
+		MockIconCreator
+		MockPerceptualHasher
+	}{}
+	mockHasher := MockFileHasher{}
+
+	imageInfos, err := computeHashes([]string{file1, file2}, progress, mockOpener, mockIconCreator, mockHasher)
+
+	if err != nil {
+		t.Fatalf("computeHashes returned an error: %v", err)
+	}
+
+	if len(imageInfos) != 2 {
+		t.Errorf("Expected 2 ImageInfo structs, got %d", len(imageInfos))
+	}
+
+	for _, info := range imageInfos {
+		if info.FileHash == [16]byte{} {
+			t.Errorf("FileHash is empty for %s", info.Path)
+		}
+		if info.PerceptualHash == 0 {
+			t.Errorf("PerceptualHash is 0 for %s", info.Path)
+		}
+		if reflect.DeepEqual(info.Icon, images4.IconT{}) {
+			t.Errorf("Icon is empty for %s", info.Path)
+		}
+	}
+
+	// Check progress channel
+	progressCount := 0
+	for range progress {
+		progressCount++
+		if progressCount == 2 {
+			break
+		}
+	}
+
+	if progressCount != 2 {
+		t.Errorf("Expected 2 progress updates, got %d", progressCount)
+	}
+}
+
+type MockPerceptualHasher struct{}
+
+func (m MockPerceptualHasher) Icon(img image.Image) (images4.IconT, uint64, error) {
+	return images4.IconT{Pixels: []uint16{1, 2, 3}}, 12345, nil
 }
