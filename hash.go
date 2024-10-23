@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/vitali-fedulov/images4"
 )
@@ -61,27 +62,47 @@ func (d DefaultFileHasher) ComputeFileHash(path string) ([16]byte, error) {
 }
 
 func computeHashes(imagePaths []string, progress chan<- string, opener ImageOpener, iconCreator IconCreator, hasher FileHasher) ([]ImageInfo, error) {
-	var imageInfos []ImageInfo
+	var wg sync.WaitGroup
+	imageInfos := make([]ImageInfo, len(imagePaths))
+	errors := make(chan error, len(imagePaths))
+
 	for i, path := range imagePaths {
-		fileHash, err := hasher.ComputeFileHash(path)
-		if err != nil {
-			fmt.Printf("Error computing file hash for %s: %v\n", path, err)
-			progress <- fmt.Sprintf("Skipped %d/%d: %s (hash error)", i+1, len(imagePaths), filepath.Base(path))
-			continue
-		}
+		wg.Add(1)
+		go func(index int, imagePath string) {
+			defer wg.Done()
 
-		img, err := opener.Open(path)
-		if err != nil {
-			fmt.Printf("Error opening image %s: %v\n", path, err)
-			progress <- fmt.Sprintf("Skipped %d/%d: %s (open error)", i+1, len(imagePaths), filepath.Base(path))
-			continue
-		}
+			fileHash, err := hasher.ComputeFileHash(imagePath)
+			if err != nil {
+				errors <- fmt.Errorf("Error computing file hash for %s: %v", imagePath, err)
+				progress <- fmt.Sprintf("Skipped %d/%d: %s (hash error)", index+1, len(imagePaths), filepath.Base(imagePath))
+				return
+			}
 
-		icon := iconCreator.Icon(img)
+			img, err := opener.Open(imagePath)
+			if err != nil {
+				errors <- fmt.Errorf("Error opening image %s: %v", imagePath, err)
+				progress <- fmt.Sprintf("Skipped %d/%d: %s (open error)", index+1, len(imagePaths), filepath.Base(imagePath))
+				return
+			}
 
-		imageInfos = append(imageInfos, ImageInfo{Path: path, FileHash: fileHash, Icon: icon})
+			icon := iconCreator.Icon(img)
 
-		progress <- fmt.Sprintf("Processed %d/%d: %s", i+1, len(imagePaths), filepath.Base(path))
+			imageInfos[index] = ImageInfo{Path: imagePath, FileHash: fileHash, Icon: icon}
+			progress <- fmt.Sprintf("Processed %d/%d: %s", index+1, len(imagePaths), filepath.Base(imagePath))
+		}(i, path)
 	}
+
+	wg.Wait()
+	close(errors)
+
+	var errSlice []error
+	for err := range errors {
+		errSlice = append(errSlice, err)
+	}
+
+	if len(errSlice) > 0 {
+		return imageInfos, fmt.Errorf("Errors occurred during hash computation: %v", errSlice)
+	}
+
 	return imageInfos, nil
 }
