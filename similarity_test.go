@@ -1,8 +1,35 @@
 package main
 
 import (
+	"fmt"
 	"testing"
+
+	"github.com/vitali-fedulov/images4"
 )
+
+// Mock for images4.Similar function
+var mockSimilar func(icon1, icon2 images4.IconT) bool
+
+func init() {
+	// Replace the original Similar function with our mock
+	images4.Similar = func(icon1, icon2 images4.IconT) bool {
+		return mockSimilar(icon1, icon2)
+	}
+}
+
+// Helper function to set up the mock behavior
+func setMockSimilar(similar bool) {
+	mockSimilar = func(icon1, icon2 images4.IconT) bool {
+		return similar
+	}
+}
+
+// ImageInfo is a struct that holds information about an image
+type ImageInfo struct {
+	Path     string
+	FileHash [16]byte
+	Icon     images4.IconT
+}
 
 func TestFindSimilarImages(t *testing.T) {
 	// Test with a set of identical images (same file hash)
@@ -64,6 +91,7 @@ func TestGroupByFileHash(t *testing.T) {
 
 func TestGroupByImageSimilarity(t *testing.T) {
 	// Test with visually similar images
+	setMockSimilar(true)
 	similarImages := []ImageInfo{
 		{Path: "image1.jpg", Icon: images4.IconT{Pixels: []uint16{1, 2, 3}}},
 		{Path: "image2.jpg", Icon: images4.IconT{Pixels: []uint16{1, 2, 3}}},
@@ -74,6 +102,7 @@ func TestGroupByImageSimilarity(t *testing.T) {
 	}
 
 	// Test with visually distinct images
+	setMockSimilar(false)
 	distinctImages := []ImageInfo{
 		{Path: "image3.jpg", Icon: images4.IconT{Pixels: []uint16{4, 5, 6}}},
 		{Path: "image4.jpg", Icon: images4.IconT{Pixels: []uint16{7, 8, 9}}},
@@ -84,9 +113,10 @@ func TestGroupByImageSimilarity(t *testing.T) {
 	}
 
 	// Test performance with a large number of images
+	setMockSimilar(true)
 	var largeImages []ImageInfo
 	for i := 0; i < 1000; i++ {
-		largeImages = append(largeImages, ImageInfo{Path: "image.jpg", Icon: images4.IconT{Pixels: []uint16{1, 2, 3}}})
+		largeImages = append(largeImages, ImageInfo{Path: fmt.Sprintf("image%d.jpg", i), Icon: images4.IconT{Pixels: []uint16{1, 2, 3}}})
 	}
 	groups = groupByImageSimilarity(largeImages)
 	if len(groups) != 1 {
